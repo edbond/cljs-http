@@ -9,8 +9,8 @@
 (defn request
   "Execute the HTTP request corresponding to the given Ring request
   map and return a core.async channel."
-  [{:keys [request-method headers body abort with-credentials]
-    :or {:with-credentials true} :as request}]
+  [{:keys [request-method headers body abort with-credentials?]
+    :or {:with-credentials? true} :as request}]
   (let [channel (async/chan)
         method (name (or request-method :get))
         timeout (or (:timeout request) 0)
@@ -24,8 +24,8 @@
                    (async/put! channel))
               (async/close! channel))]
     (gevents/listen xhr EventType.COMPLETE cb)
-    (if with-credentials
-      (.setWithCredentials xhr with-credentials))
+    (if with-credentials?
+      (.setWithCredentials xhr true))
     (if timeout
       (.setTimeoutInterval xhr timeout))
     (.send xhr (util/build-url request) method body headers)
