@@ -7,7 +7,8 @@
             [clojure.string :refer [blank? join split]]
             [goog.Uri :as uri]
             [no.en.core :refer [url-encode url-decode]])
-  (:require-macros [cljs.core.async.macros :refer [go]]))
+  (:require-macros [cljs.core.async.macros :refer [go]])
+  (:import [goog.net XhrIo]))
 
 (defn if-pos [v]
   (if (and v (pos? v)) v))
@@ -164,6 +165,16 @@
                             (str "Bearer " oauth-token))))
       (client req))))
 
+(def requests-registry (atom {}))
+(defn wrap-abort
+  "Mixin xhrio object into request"
+  [client]
+  (fn [req]
+    (let [xhr (XhrIo.)
+          ch (client (-> req (assoc :xhr xhr)))]
+      (swap! requests-registry assoc ch xhr)
+      ch)))
+
 (defn wrap-request
   "Returns a battaries-included HTTP request function coresponding to the given
    core client. See client/client."
@@ -178,7 +189,8 @@
       wrap-oauth
       wrap-android-cors-bugfix
       wrap-method
-      wrap-url))
+      wrap-url
+      wrap-abort))
 
 (def #^{:doc
         "Executes the HTTP request corresponding to the given map and returns the
@@ -232,9 +244,12 @@
   (request (merge req {:method :put :url url})))
 
 (defn abort
-  "Abort xhr request by channel"
+  "Try to abort xhr request by channel"
   [channel]
-  (core/abort channel))
+  (when-let [xhr (@requests-registry channel)]
+    (.abort xhr))
+  (close! channel)
+  (swap! requests-registry dissoc channel))
 
 (comment
 
