@@ -231,6 +231,11 @@
   [url & [req]]
   (request (merge req {:method :put :url url})))
 
+(defn abort
+  "Abort xhr request by channel"
+  [channel]
+  (core/abort channel))
+
 (comment
 
   (ns example.core
